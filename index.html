@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jeu de Conduite Invisible</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        #gameCanvas {
+            border: 2px solid #4a5568;
+            background-color: #f7fafc;
+            touch-action: none;
+        }
+        .path-drawing {
+            cursor: crosshair;
+        }
+        .vehicle-driving {
+            cursor: grab;
+        }
+        .timer-bar {
+            transition: width 0.5s linear;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center p-4">
+    <div class="w-full max-w-4xl bg-white rounded-xl shadow-xl overflow-hidden">
+        <div class="bg-indigo-600 p-4 text-white flex justify-between items-center">
+            <h1 class="text-2xl md:text-3xl font-bold text-center flex-1">Conduite Invisible</h1>
+            <button id="helpBtn" class="px-4 py-2 bg-white text-indigo-600 rounded-md font-medium hover:bg-gray-100">
+                Comment jouer ?
+            </button>
+        </div>
+        
+        <div class="p-4 space-y-4">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="w-full md:w-auto">
+                    <label for="levelSelect" class="block text-sm font-medium text-gray-700 mb-1">Niveau :</label>
+                    <select id="levelSelect" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="1">1 - Facile</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5 - Moyen</option>
+                        <option value="6">6</option>
+                        <option value="7">7</option>
+                        <option value="8">8</option>
+                        <option value="9">9 - Difficile</option>
+                        <option value="10">10 - Expert</option>
+                    </select>
+                </div>
+                
+                <div class="w-full md:w-auto">
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm font-medium text-gray-700">Temps :</span>
+                        <span id="timeDisplay" class="text-lg font-bold text-indigo-600">--</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-1">
+                        <div id="timerBar" class="bg-indigo-600 h-2.5 rounded-full timer-bar" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <button id="startBtn" class="w-full md:w-auto px-6 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition">
+                    Commencer
+                </button>
+            </div>
+            
+            <div class="relative">
+                <canvas id="gameCanvas" class="w-full h-auto border-gray-300 rounded-lg"></canvas>
+                <div id="pathBtnContainer" class="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+                    <button id="pathBtn" class="pointer-events-auto px-8 py-4 bg-red-600 text-white font-bold rounded-full shadow-xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition pulse">
+                        MAINTIENS POUR TRACER LE CHEMIN
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-4 gap-2">
+                <button id="upBtn" class="py-3 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 hidden">
+                    ↑ Haut
+                </button>
+                <button id="leftBtn" class="py-3 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 hidden">
+                    ← Gauche
+                </button>
+                <button id="rightBtn" class="py-3 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 hidden">
+                    → Droite
+                </button>
+                <button id="downBtn" class="py-3 bg-gray-200 rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 hidden">
+                    ↓ Bas
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal pour l'aide -->
+    <!-- Fenêtre modale (masquée par défaut) -->
+    <div id="helpModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+            <h2 class="text-2xl font-bold mb-4 text-center">Comment jouer ?</h2>
+            <div class="space-y-4 text-gray-700 max-h-[60vh] overflow-y-auto pr-2">
+                <p class="font-bold text-lg sticky top-0 bg-white py-2">Guide Complet pour Débutants :</p>
+                
+                <p class="font-medium mt-4"><strong>1. Préparation :</strong></p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>Choisissez le niveau 1 pour commencer (le plus facile)</li>
+                    <li>Cliquez sur "Commencer"</li>
+                </ul>
+
+                <p class="font-medium mt-4"><strong>2. Tracé du chemin :</strong></p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>Un chemin sera générer automatique/li>
+                    <li>Mémoriser ce chemin</li>
+                </ul>
+
+                <p class="font-medium mt-4"><strong>3. Conduite :</strong></p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>Le chemin va disparaître - c'est normal !</li>
+                    <li>Sur ordinateur : utilisez les flèches du clavier (↑ ↓ ← →)</li>
+                    <li>Sur mobile : utilisez les boutons qui apparaissent</li>
+                    <li>Dirigez le carré bleu vers le point rouge</li>
+                    <li>Ne sortez pas du chemin invisible !</li>
+                </ul>
+
+                <p class="font-medium mt-4"><strong>Conseils :</strong></p>
+                <ul class="list-disc pl-5 space-y-2">
+                    <li>Allez doucement pour ne pas sortir du chemin</li>
+                    <li>Le niveau 1 donne 2 minutes - c'est amplement suffisant</li>
+                </ul>
+
+                <p class="text-indigo-600 font-medium">Le but : Atteindre l'arrivée avant la fin du temps en suivant le chemin invisible !</p>
+            </div>
+            <div class="flex justify-center mt-6">
+                <button id="helpCloseBtn" class="px-6 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700">
+                    J'ai compris
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal pour les notifications -->
+    <div id="notificationModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden z-50">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 transform transition-all">
+            <h2 id="notificationTitle" class="text-2xl font-bold mb-2 text-center"></h2>
+            <p id="notificationMessage" class="text-gray-700 mb-4 text-center"></p>
+            <div class="flex justify-center">
+                <button id="modalCloseBtn" class="px-6 py-2 bg-indigo-600 text-white font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // Sélection des éléments
+        const helpBtn = document.getElementById("helpBtn");
+        const helpModal = document.getElementById("helpModal");
+        const helpCloseBtn = document.getElementById("helpCloseBtn");
+
+        // Afficher la modale quand on clique sur le bouton
+        helpBtn.addEventListener("click", () => {
+            helpModal.classList.remove("hidden");
+        });
+
+        // Fermer la modale quand on clique sur "J'ai compris"
+        helpCloseBtn.addEventListener("click", () => {
+            helpModal.classList.add("hidden");
+        });
+
+        // Fermer la modale si on clique en dehors de la boîte
+        helpModal.addEventListener("click", (e) => {
+            if (e.target === helpModal) {
+                helpModal.classList.add("hidden");
+            }
+        });
+
+        // Configuration du jeu
+        const config = {
+            levelTimes: [120, 100, 90, 80, 70, 60, 50, 45, 40, 35], // Temps en secondes par niveau
+            minPathLength: [100, 120, 150, 180, 200, 230, 250, 280, 300, 350], // Longueur minimale du chemin par niveau
+            maxObstacles: [0, 1, 2, 3, 4, 5, 6, 7, 8, 10], // Nombre max d'obstacles par niveau
+            obstacleSize: 40, // Taille des obstacles
+            vehicleSpeed: 3, // Vitesse de base du véhicule
+            vehicleSize: 20, // Taille du véhicule
+            pathWidth: 10,   // Largeur du chemin
+            colors: {
+                path: '#4C51BF',
+                start: '#10B981',
+                end: '#EF4444',
+                vehicle: '#3B82F6',
+                offPath: '#F59E0B'
+            }
+        };
+
+        // Éléments du DOM
+        const elements = {
+            canvas: document.getElementById('gameCanvas'),
+            ctx: document.getElementById('gameCanvas').getContext('2d'),
+            levelSelect: document.getElementById('levelSelect'),
+            startBtn: document.getElementById('startBtn'),
+            pathBtn: document.getElementById('pathBtn'),
+            pathBtnContainer: document.getElementById('pathBtnContainer'),
+            timeDisplay: document.getElementById('timeDisplay'),
+            timerBar: document.getElementById('timerBar'),
+            upBtn: document.getElementById('upBtn'),
+            downBtn: document.getElementById('downBtn'),
+            leftBtn: document.getElementById('leftBtn'),
+            rightBtn: document.getElementById('rightBtn'),
+            notificationModal: document.getElementById('notificationModal'),
+            notificationTitle: document.getElementById('notificationTitle'),
+            notificationMessage: document.getElementById('notificationMessage'),
+            modalCloseBtn: document.getElementById('modalCloseBtn')
+        };
+
+        // État du jeu
+        let gameState = {
+            currentLevel: 1,
+            isDrawing: false,
+            isDriving: false,
+            pathPoints: [],
+            startPoint: null,
+            endPoint: null,
+            vehiclePosition: null,
+            vehicleDirection: { x: 0, y: 0 },
+            timeLeft: 0,
+            timerInterval: null,
+            isOnPath: true,
+            pathCompleted: false
+        };
+
+        // Initialisation du canvas
+        function initCanvas() {
+            const container = elements.canvas.parentElement;
+            const size = Math.min(container.clientWidth, container.clientHeight * 1.5);
+            elements.canvas.width = size;
+            elements.canvas.height = size * 0.75;
+            elements.ctx.lineJoin = 'round';
+            elements.ctx.lineCap = 'round';
+        }
+
+        // Redimensionnement du canvas
+        window.addEventListener('resize', () => {
+            initCanvas();
+            if (gameState.isDriving) {
+                drawGame();
+            } else if (gameState.pathPoints.length > 0) {
+                drawPath();
+            }
+        });
+
+        // Démarrer le jeu
+        elements.startBtn.addEventListener('click', () => {
+            gameState.currentLevel = parseInt(elements.levelSelect.value);
+            gameState.pathPoints = [];
+            gameState.isDrawing = false;
+            gameState.isDriving = false;
+            gameState.pathCompleted = false;
+            
+            // Calcul du temps en fonction du niveau
+            gameState.timeLeft = config.levelTimes[gameState.currentLevel - 1];
+            updateTimeDisplay();
+            
+            // Préparer le canvas
+            initCanvas();
+            elements.ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
+            
+            // Générer le chemin automatiquement
+            generatePath();
+            
+            // Cacher les boutons de direction
+            elements.upBtn.classList.add('hidden');
+            elements.downBtn.classList.add('hidden');
+            elements.leftBtn.classList.add('hidden');
+            elements.rightBtn.classList.add('hidden');
+            
+            // Désactiver le bouton de démarrage
+            elements.startBtn.disabled = true;
+            elements.levelSelect.disabled = true;
+        });
+
+        // Gestion du tracé du chemin
+        elements.pathBtn.addEventListener('mousedown', startDrawing);
+        elements.pathBtn.addEventListener('touchstart', startDrawing);
+        elements.pathBtn.addEventListener('mouseup', stopDrawing);
+        elements.pathBtn.addEventListener('touchend', stopDrawing);
+        elements.pathBtn.addEventListener('mouseleave', stopDrawing);
+
+        function startDrawing(e) {
+            e.preventDefault();
+            gameState.isDrawing = true;
+            gameState.pathPoints = [];
+            
+            // Position initiale (départ)
+            const rect = elements.canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            gameState.startPoint = { x, y };
+            gameState.pathPoints.push({ x, y });
+            
+            // Style pour le tracé
+            elements.canvas.classList.add('path-drawing');
+            
+            // Commencer à suivre le mouvement
+            elements.canvas.addEventListener('mousemove', drawPathSegment);
+            elements.canvas.addEventListener('touchmove', drawPathSegment);
+        }
+
+        function drawPathSegment(e) {
+            if (!gameState.isDrawing) return;
+            e.preventDefault();
+            
+            const rect = elements.canvas.getBoundingClientRect();
+            const x = (e.clientX || e.touches[0].clientX) - rect.left;
+            const y = (e.clientY || e.touches[0].clientY) - rect.top;
+            
+            // Ajouter le point au chemin
+            gameState.pathPoints.push({ x, y });
+            
+            // Dessiner le chemin
+            drawPath();
+        }
+
+        function drawPath() {
+            elements.ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
+            
+            if (gameState.pathPoints.length < 2) return;
+            
+            // Dessiner le chemin
+            elements.ctx.beginPath();
+            elements.ctx.moveTo(gameState.pathPoints[0].x, gameState.pathPoints[0].y);
+            
+            for (let i = 1; i < gameState.pathPoints.length; i++) {
+                elements.ctx.lineTo(gameState.pathPoints[i].x, gameState.pathPoints[i].y);
+            }
+            
+            elements.ctx.strokeStyle = config.colors.path;
+            elements.ctx.lineWidth = config.pathWidth;
+            elements.ctx.stroke();
+            
+            // Dessiner le point de départ
+            if (gameState.startPoint) {
+                elements.ctx.beginPath();
+                elements.ctx.arc(gameState.startPoint.x, gameState.startPoint.y, config.pathWidth/2, 0, Math.PI * 2);
+                elements.ctx.fillStyle = config.colors.start;
+                elements.ctx.fill();
+            }
+            
+            // Dessiner le point d'arrivée (dernier point)
+            gameState.endPoint = gameState.pathPoints[gameState.pathPoints.length - 1];
+            elements.ctx.beginPath();
+            elements.ctx.arc(gameState.endPoint.x, gameState.endPoint.y, config.pathWidth/2, 0, Math.PI * 2);
+            elements.ctx.fillStyle = config.colors.end;
+            elements.ctx.fill();
+        }
+
+        // Générer un chemin automatique
+        function generatePath() {
+            const level = gameState.currentLevel - 1;
+            const minLength = config.minPathLength[level];
+            const maxObstacles = config.maxObstacles[level];
+            const canvasWidth = elements.canvas.width;
+            const canvasHeight = elements.canvas.height;
+            
+            // Position de départ (gauche au milieu)
+            gameState.startPoint = { 
+                x: 50, 
+                y: canvasHeight / 2 
+            };
+            
+            // Position d'arrivée (droite au milieu)
+            gameState.endPoint = { 
+                x: canvasWidth - 50, 
+                y: canvasHeight / 2 
+            };
+            
+            // Générer des points de contrôle pour le chemin
+            const controlPoints = [];
+            const segments = 3 + level; // Plus de segments pour les niveaux élevés
+            
+            // Ajouter des points de contrôle aléatoires
+            for (let i = 1; i <= segments; i++) {
+                const x = gameState.startPoint.x + (i * (canvasWidth - 100) / (segments + 1));
+                const yVariation = (canvasHeight / 3) * (0.5 + Math.random() * level / 10);
+                const y = canvasHeight / 2 + (Math.random() > 0.5 ? yVariation : -yVariation);
+                controlPoints.push({ x, y });
+            }
+            
+            // Générer le chemin avec des courbes de Bézier
+            gameState.pathPoints = [];
+            gameState.pathPoints.push(gameState.startPoint);
+            
+            for (let i = 0; i < controlPoints.length; i++) {
+                const nextPoint = i === controlPoints.length - 1 ? gameState.endPoint : controlPoints[i + 1];
+                const steps = 20;
+                
+                for (let j = 1; j <= steps; j++) {
+                    const t = j / steps;
+                    const x = Math.pow(1-t, 2) * controlPoints[i].x + 2 * (1-t) * t * controlPoints[i].x + Math.pow(t, 2) * nextPoint.x;
+                    const y = Math.pow(1-t, 2) * controlPoints[i].y + 2 * (1-t) * t * controlPoints[i].y + Math.pow(t, 2) * nextPoint.y;
+                    gameState.pathPoints.push({ x, y });
+                }
+            }
+            
+            // Générer des obstacles
+            gameState.obstacles = [];
+            for (let i = 0; i < maxObstacles; i++) {
+                let obstacle;
+                let validPosition = false;
+                let attempts = 0;
+                
+                while (!validPosition && attempts < 100) {
+                    attempts++;
+                    obstacle = {
+                        x: 100 + Math.random() * (canvasWidth - 200),
+                        y: 50 + Math.random() * (canvasHeight - 100),
+                        width: config.obstacleSize + Math.random() * 20,
+                        height: config.obstacleSize + Math.random() * 20
+                    };
+                    
+                    // Vérifier que l'obstacle ne touche pas le chemin
+                    validPosition = true;
+                    for (const point of gameState.pathPoints) {
+                        if (Math.abs(point.x - obstacle.x) < obstacle.width/2 + config.pathWidth/2 &&
+                            Math.abs(point.y - obstacle.y) < obstacle.height/2 + config.pathWidth/2) {
+                            validPosition = false;
+                            break;
+                        }
+                    }
+                    
+                    if (validPosition) {
+                        gameState.obstacles.push(obstacle);
+                    }
+                }
+            }
+            
+            // Cacher le bouton de tracé
+            elements.pathBtnContainer.classList.remove('opacity-100');
+            elements.pathBtnContainer.classList.add('opacity-0');
+            
+            // Afficher le chemin généré
+            drawPath();
+            
+            // Afficher le message d'instructions
+            showNotification('Instructions', `Niveau ${gameState.currentLevel} - Le chemin va disparaître dans 3 secondes. Dirigez le véhicule bleu du point vert au point rouge en suivant le chemin invisible.`);
+            
+            // Démarrer le jeu automatiquement après un délai
+            setTimeout(() => {
+                elements.notificationModal.classList.add('hidden');
+                startDriving();
+            }, 3000);
+        }
+
+        // Commencer la phase de conduite
+        function startDriving() {
+            gameState.isDriving = true;
+            elements.canvas.classList.add('vehicle-driving');
+            
+            // Position initiale du véhicule
+            gameState.vehiclePosition = { ...gameState.startPoint };
+            gameState.vehicleDirection = { x: 0, y: 0 };
+            
+            // Afficher les boutons de direction sur mobile
+            if (window.innerWidth < 768) {
+                elements.upBtn.classList.remove('hidden');
+                elements.downBtn.classList.remove('hidden');
+                elements.leftBtn.classList.remove('hidden');
+                elements.rightBtn.classList.remove('hidden');
+            }
+            
+            // Démarrer le timer
+            startTimer();
+            
+            // Dessiner le jeu
+            drawGame();
+            
+            // Écouter les touches du clavier
+            window.addEventListener('keydown', handleKeyDown);
+            
+            // Écouter les boutons de direction sur mobile
+            elements.upBtn.addEventListener('click', () => moveVehicle(0, -1));
+            elements.downBtn.addEventListener('click', () => moveVehicle(0, 1));
+            elements.leftBtn.addEventListener('click', () => moveVehicle(-1, 0));
+            elements.rightBtn.addEventListener('click', () => moveVehicle(1, 0));
+        }
+
+        // Gestion du timer
+        function startTimer() {
+            clearInterval(gameState.timerInterval);
+            gameState.timerInterval = setInterval(() => {
+                gameState.timeLeft--;
+                updateTimeDisplay();
+                
+                if (gameState.timeLeft <= 0) {
+                    clearInterval(gameState.timerInterval);
+                    gameOver(false);
+                }
+            }, 1000);
+        }
+
+        function updateTimeDisplay() {
+            const minutes = Math.floor(gameState.timeLeft / 60);
+            const seconds = gameState.timeLeft % 60;
+            elements.timeDisplay.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+            
+            // Mettre à jour la barre de progression
+            const totalTime = config.levelTimes[gameState.currentLevel - 1];
+            const percentage = (gameState.timeLeft / totalTime) * 100;
+            elements.timerBar.style.width = `${percentage}%`;
+            
+            // Changer la couleur en fonction du temps restant
+            if (percentage < 20) {
+                elements.timerBar.classList.remove('bg-indigo-600');
+                elements.timerBar.classList.add('bg-red-600');
+            } else if (percentage < 50) {
+                elements.timerBar.classList.remove('bg-red-600');
+                elements.timerBar.classList.add('bg-yellow-500');
+            } else {
+                elements.timerBar.classList.remove('bg-yellow-500', 'bg-red-600');
+                elements.timerBar.classList.add('bg-indigo-600');
+            }
+        }
+
+        // Gestion des touches du clavier
+        function handleKeyDown(e) {
+            if (!gameState.isDriving) return;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                    moveVehicle(0, -1);
+                    break;
+                case 'ArrowDown':
+                    moveVehicle(0, 1);
+                    break;
+                case 'ArrowLeft':
+                    moveVehicle(-1, 0);
+                    break;
+                case 'ArrowRight':
+                    moveVehicle(1, 0);
+                    break;
+            }
+        }
+
+        // Déplacement du véhicule
+        function moveVehicle(dx, dy) {
+            if (!gameState.isDriving || gameState.pathCompleted) return;
+            
+            // Mettre à jour la direction
+            gameState.vehicleDirection = { x: dx, y: dy };
+            
+            // Calculer la nouvelle position
+            const speed = config.vehicleSpeed * (1 + gameState.currentLevel * 0.1); // Vitesse augmentée avec le niveau
+            const newX = gameState.vehiclePosition.x + dx * speed;
+            const newY = gameState.vehiclePosition.y + dy * speed;
+            
+            // Vérifier les limites du canvas
+            if (newX < 0 || newX > elements.canvas.width || 
+                newY < 0 || newY > elements.canvas.height) {
+                return;
+            }
+            
+            // Mettre à jour la position
+            gameState.vehiclePosition = { x: newX, y: newY };
+            
+            // Vérifier si le véhicule est toujours sur le chemin
+            checkPathCollision();
+            
+            // Vérifier si le véhicule est arrivé
+            checkArrival();
+            
+            // Redessiner le jeu
+            drawGame();
+        }
+
+        // Vérifier les collisions avec le chemin et les obstacles
+        function checkPathCollision() {
+            const vehicle = gameState.vehiclePosition;
+            let isOnPath = false;
+            
+            // Vérifier chaque segment du chemin
+            for (let i = 0; i < gameState.pathPoints.length - 1; i++) {
+                const p1 = gameState.pathPoints[i];
+                const p2 = gameState.pathPoints[i + 1];
+                
+                // Distance du point au segment
+                const distance = pointToSegmentDistance(vehicle, p1, p2);
+                
+                if (distance <= config.pathWidth / 2 + config.vehicleSize / 2) {
+                    isOnPath = true;
+                    break;
+                }
+            }
+            
+            // Vérifier les collisions avec les obstacles
+            if (gameState.obstacles) {
+                for (const obstacle of gameState.obstacles) {
+                    if (Math.abs(vehicle.x - obstacle.x) < obstacle.width/2 + config.vehicleSize/2 &&
+                        Math.abs(vehicle.y - obstacle.y) < obstacle.height/2 + config.vehicleSize/2) {
+                        gameOver(false);
+                        return;
+                    }
+                }
+            }
+            
+            gameState.isOnPath = isOnPath;
+            
+            // Si le véhicule sort du chemin
+            if (!isOnPath) {
+                gameOver(false);
+            }
+        }
+
+        // Calculer la distance d'un point à un segment
+        function pointToSegmentDistance(point, segmentStart, segmentEnd) {
+            const A = point.x - segmentStart.x;
+            const B = point.y - segmentStart.y;
+            const C = segmentEnd.x - segmentStart.x;
+            const D = segmentEnd.y - segmentStart.y;
+            
+            const dot = A * C + B * D;
+            const len_sq = C * C + D * D;
+            let param = -1;
+            
+            if (len_sq !== 0) {
+                param = dot / len_sq;
+            }
+            
+            let xx, yy;
+            
+            if (param < 0) {
+                xx = segmentStart.x;
+                yy = segmentStart.y;
+            } else if (param > 1) {
+                xx = segmentEnd.x;
+                yy = segmentEnd.y;
+            } else {
+                xx = segmentStart.x + param * C;
+                yy = segmentStart.y + param * D;
+            }
+            
+            const dx = point.x - xx;
+            const dy = point.y - yy;
+            
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // Vérifier si le véhicule est arrivé
+        function checkArrival() {
+            const vehicle = gameState.vehiclePosition;
+            const end = gameState.endPoint;
+            
+            const distance = Math.sqrt(
+                Math.pow(vehicle.x - end.x, 2) + 
+                Math.pow(vehicle.y - end.y, 2)
+            );
+            
+            if (distance <= config.pathWidth / 2 + config.vehicleSize / 2) {
+                gameState.pathCompleted = true;
+                gameOver(true);
+            }
+        }
+
+        // Dessiner le jeu avec obstacles
+        function drawGame() {
+            elements.ctx.clearRect(0, 0, elements.canvas.width, elements.canvas.height);
+            
+            // Dessiner les obstacles
+            if (gameState.obstacles) {
+                elements.ctx.fillStyle = '#E53E3E';
+                for (const obstacle of gameState.obstacles) {
+                    elements.ctx.fillRect(
+                        obstacle.x - obstacle.width/2,
+                        obstacle.y - obstacle.height/2,
+                        obstacle.width,
+                        obstacle.height
+                    );
+                }
+            }
+            
+            // Dessiner le véhicule
+            const vehicle = gameState.vehiclePosition;
+            elements.ctx.save();
+            elements.ctx.translate(vehicle.x, vehicle.y);
+            
+            // Orientation du véhicule en fonction de la direction
+            if (gameState.vehicleDirection.x !== 0 || gameState.vehicleDirection.y !== 0) {
+                const angle = Math.atan2(gameState.vehicleDirection.y, gameState.vehicleDirection.x);
+                elements.ctx.rotate(angle);
+            }
+            
+            // Corps du véhicule
+            elements.ctx.fillStyle = gameState.isOnPath ? config.colors.vehicle : config.colors.offPath;
+            elements.ctx.fillRect(
+                -config.vehicleSize / 2, 
+                -config.vehicleSize / 2, 
+                config.vehicleSize, 
+                config.vehicleSize
+            );
+            
+            // Vitres avant/arrière
+            elements.ctx.fillStyle = '#FFFFFF';
+            elements.ctx.fillRect(
+                -config.vehicleSize / 2 + 2, 
+                -config.vehicleSize / 2 + 2, 
+                config.vehicleSize - 4, 
+                config.vehicleSize / 2 - 2
+            );
+            
+            elements.ctx.restore();
+            
+            // Dessiner le point d'arrivée
+            if (gameState.endPoint) {
+                elements.ctx.beginPath();
+                elements.ctx.arc(
+                    gameState.endPoint.x, 
+                    gameState.endPoint.y, 
+                    config.pathWidth/2, 
+                    0, 
+                    Math.PI * 2
+                );
+                elements.ctx.fillStyle = config.colors.end;
+                elements.ctx.fill();
+            }
+        }
+
+        // Fin du jeu
+        function gameOver(success) {
+            clearInterval(gameState.timerInterval);
+            gameState.isDriving = false;
+            
+            // Retirer les écouteurs
+            window.removeEventListener('keydown', handleKeyDown);
+            elements.upBtn.removeEventListener('click', () => moveVehicle(0, -1));
+            elements.downBtn.removeEventListener('click', () => moveVehicle(0, 1));
+            elements.leftBtn.removeEventListener('click', () => moveVehicle(-1, 0));
+            elements.rightBtn.removeEventListener('click', () => moveVehicle(1, 0));
+            
+            // Afficher le résultat
+            if (success) {
+                showNotification(
+                    'Félicitations !', 
+                    `Vous avez complété le niveau ${gameState.currentLevel} ! ${gameState.currentLevel < 10 ? 'Passez au niveau suivant.' : 'Vous avez terminé tous les niveaux !'}`
+                );
+                
+                // Passer au niveau suivant si possible
+                if (gameState.currentLevel < 10) {
+                    elements.levelSelect.value = gameState.currentLevel + 1;
+                }
+            } else {
+                showNotification(
+                    'Échec', 
+                    `Vous n'avez pas réussi le niveau ${gameState.currentLevel}. Essayez à nouveau !`
+                );
+            }
+            
+            // Réactiver les boutons
+            elements.startBtn.disabled = false;
+            elements.levelSelect.disabled = false;
+            
+            // Cacher les boutons de direction
+            elements.upBtn.classList.add('hidden');
+            elements.downBtn.classList.add('hidden');
+            elements.leftBtn.classList.add('hidden');
+            elements.rightBtn.classList.add('hidden');
+            
+            // Retirer les classes du canvas
+            elements.canvas.classList.remove('vehicle-driving');
+        }
+
+        // Afficher une notification
+        function showNotification(title, message) {
+            elements.notificationTitle.textContent = title;
+            elements.notificationMessage.textContent = message;
+            elements.notificationModal.classList.remove('hidden');
+        }
+
+        // Fermer la notification
+        document.getElementById('modalCloseBtn').addEventListener('click', function() {
+            document.getElementById('notificationModal').classList.add('hidden');
+        });
+
+        // Fermer la modal en cliquant à l'extérieur
+        document.getElementById('notificationModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.add('hidden');
+            }
+        });
+
+        // Gestion de l'aide
+        document.getElementById('helpBtn').addEventListener('click', function() {
+            document.getElementById('helpModal').classList.remove('hidden');
+        });
+
+        document.getElementById('helpCloseBtn').addEventListener('click', function() {
+            document.getElementById('helpModal').classList.add('hidden');
+        });
+
+        // Fermer la modal en cliquant à l'extérieur
+        document.getElementById('helpModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                this.classList.add('hidden');
+            }
+        });
+
+        // Initialisation
+        initCanvas();
+        
+        // Afficher l'aide au premier chargement
+        setTimeout(() => {
+            helpModal.classList.remove('hidden');
+        }, 500);
+    </script>
+</body>
+</html>
